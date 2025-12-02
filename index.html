@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>3D Комната</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://threejs.org/build/three.module.js",
+            "three/addons/": "https://threejs.org/examples/jsm/"
+        }
+    }
+    </script>
+
+</head>
+<body style="margin:0; overflow:hidden; background:#000">
+
+<script type="module">
+
+import * as THREE from 'three';
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { MTLLoader } from "three/addons/loaders/MTLLoader.js";
+import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
+
+let scene, camera, renderer, controls;
+
+init();
+animate();
+
+function init() {
+
+    // ----------------- SCENE -----------------
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xD3D3D3);
+
+    // ----------------- CAMERA -----------------
+    camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 1, 50000);
+    camera.position.set(0, -500, 2900);
+
+    // ----------------- RENDERER -----------------
+    renderer = new THREE.WebGLRenderer({ antialias:true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // ----------------- CONTROLS -----------------
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.minDistance = 500;
+    controls.maxDistance = 5000;
+
+    // ----------------- LIGHT -----------------
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
+    const dir = new THREE.DirectionalLight(0xffffff, 1.3);
+    dir.position.set(2000, 3000, 1500);
+    scene.add(dir);
+
+    // ----------------- LOAD TEXTURES -----------------
+    const loader = new THREE.TextureLoader();
+
+    const wall1 = loader.load("./wall1.png");
+    const wall2 = loader.load("./wall2.png");
+    const wall3 = loader.load("./wall3.png");
+    const wall4 = loader.load("./wall4.png");
+    const ceiling = loader.load("./ceiling.jpg");
+    const floor = loader.load("./floor.jpg");
+
+    // повтор пола (если нужно)
+    floor.wrapS = floor.wrapT = THREE.RepeatWrapping;
+    floor.repeat.set(4, 4);
+
+    // ----------------- MATERIALS FOR CUBE -----------------
+    // порядок граней: PX, NX, PY, NY, PZ, NZ
+    const materials = [
+        new THREE.MeshPhongMaterial({ map: wall1, side: THREE.BackSide }), // RIGHT wall
+        new THREE.MeshPhongMaterial({ map: wall2, side: THREE.BackSide }), // LEFT wall
+        new THREE.MeshPhongMaterial({ map: ceiling, side: THREE.BackSide }), // CEILING
+        new THREE.MeshPhongMaterial({ map: floor, side: THREE.BackSide }),   // FLOOR
+        new THREE.MeshPhongMaterial({ map: wall3, side: THREE.BackSide }), // FRONT wall
+        new THREE.MeshPhongMaterial({ map: wall4, side: THREE.BackSide })  // BACK wall
+    ];
+
+    // ----------------- ROOM BOX -----------------
+    const roomGeo = new THREE.BoxGeometry(5000, 5000, 5000);
+    const room = new THREE.Mesh(roomGeo, materials);
+    scene.add(room);
+
+    // ----------------- HUMAN MODEL -----------------
+    const onProgress = xhr => {
+        if (xhr.lengthComputable)
+            console.log((xhr.loaded / xhr.total * 100).toFixed(2) + "%");
+    };
+
+    new MTLLoader()
+        .setPath('https://threejs.org/examples/models/obj/male02/')
+        .load('male02.mtl', materials => {
+
+            materials.preload();
+
+            new OBJLoader()
+                .setMaterials(materials)
+                .setPath('https://threejs.org/examples/models/obj/male02/')
+                .load('male02.obj', obj => {
+
+                    obj.position.set(0, -2400, 0);
+                    obj.scale.setScalar(10);
+                    obj.rotation.y = Math.PI / 2;
+
+                    scene.add(obj);
+                }, onProgress);
+
+        });
+
+    window.addEventListener("resize", onWindowResize);
+}
+
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+</script>
+
+</body>
+</html>
